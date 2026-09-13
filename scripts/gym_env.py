@@ -45,15 +45,13 @@ class ArduinoBotEnv(gym.Env):
         self.target_pos = np.zeros(3, dtype=np.float32)
 
         # Task parameters
-        self.success_threshold = 0.08       # meters
-        self.velocity_threshold = 0.05      # m/s, for stability check
-        self.max_episode_steps = 1500        # TODO: tune based on empirical settling time
-        self._step_count = 0
+        self.success_threshold = 0.15       # meters
+        self.velocity_threshold = 0.2      # m/s, for stability check
 
-        # Load reachable workspace point cloud (from earlier sampling script)
+        # Load reachable workspace point cloud
         self.reachable_points = np.load("/home/shourya/ee_reachable_points.npy")
 
-        # Scratch buffer reused every step for mj_objectVelocity (avoids reallocating each call)
+        # Scratch buffer reused every step for mj_objectVelocity
         self._ee_vel6 = np.zeros(6)
 
     def _get_obs(self):
@@ -70,21 +68,15 @@ class ArduinoBotEnv(gym.Env):
         return obs
 
     def _get_ee_speed(self):
-        """
-        Correct way to get end-effector Cartesian velocity in MuJoCo.
-        mj_objectVelocity fills a 6-vector: [angular(3), linear(3)]
-        expressed in the LOCAL frame of the site by default (flg_local=0 below
-        requests WORLD frame instead, which is what we want for a fixed target).
-        """
         mujoco.mj_objectVelocity(
             self.model,
             self.data,
             mujoco.mjtObj.mjOBJ_SITE,
             self.ee_site_id,
             self._ee_vel6,
-            0,  # flg_local = 0 -> world frame
+            0,
         )
-        linear_vel = self._ee_vel6[3:6]  # last 3 entries = linear velocity
+        linear_vel = self._ee_vel6[3:6]
         return np.linalg.norm(linear_vel)
 
     def _get_reward(self):
@@ -92,18 +84,17 @@ class ArduinoBotEnv(gym.Env):
         distance = np.linalg.norm(self.target_pos - ee_pos)
         ee_speed = self._get_ee_speed()
 
-        # Dense shaping: negative distance, encourages continuous progress
-        reward = -distance
+        # Dense shaping: penalise distance and add a small step urgency penalty
+        reward = -distance - 0.01
 
-        # Small penalty for high-speed "flying through" the target region,
-        # encourages settling rather than overshooting
+        # Small penalty for high-speed "flying through" the target region
         if distance < self.success_threshold:
             reward -= 0.1 * ee_speed
 
-        # Success bonus
+        # Success bonus (Increased from 10.0 to 100.0 to offset distance penalties)
         success = (distance < self.success_threshold) and (ee_speed < self.velocity_threshold)
         if success:
-            reward += 10.0
+            reward += 100.0
 
         return reward, distance, ee_speed, success
 
@@ -120,8 +111,6 @@ class ArduinoBotEnv(gym.Env):
 
         mujoco.mj_forward(self.model, self.data)
 
-        self._step_count = 0
-
         obs = self._get_obs()
         info = {}
         return obs, info
@@ -133,16 +122,15 @@ class ArduinoBotEnv(gym.Env):
             actuator_id = self.model.actuator(f"servo_{name}").id
             self.data.ctrl[actuator_id] = action[i]
 
-        mujoco.mj_step(self.model, self.data)
-        self._step_count += 1
+        for _ in range(5): # Run 5 physics steps per action step
+            mujoco.mj_step(self.model, self.data)
 
         obs = self._get_obs()
         reward, distance, ee_speed, success = self._get_reward()
 
-        timeout = self._step_count >= self.max_episode_steps
-
+        # Let the Gymnasium TimeLimit wrapper manage truncation instead of manual counting
         terminated = bool(success)
-        truncated = bool(timeout)
+        truncated = False
 
         info = {"is_success": success, "distance": distance, "ee_speed": ee_speed}
 
@@ -161,8 +149,18 @@ class ArduinoBotEnv(gym.Env):
             self.viewer = None
 
 
+# --- REGISTRATION AND RUNTIME ---
+# Register the environment properly so Gymnasium wraps it with a TimeLimit
+register(
+    id="ArduinoBot-v0",
+    entry_point="__main__:ArduinoBotEnv",
+    max_episode_steps=1000, # Reduced to 1000 (5000 is exceptionally long for reaching tasks)
+)
+
 if __name__ == "__main__":
-    env = ArduinoBotEnv(render_mode="human")
+    # Create the wrapped environment instance
+    env = gym.make("ArduinoBot-v0", render_mode="human")
+    
     print("Action space low:", env.action_space.low)
     print("Action space high:", env.action_space.high)
     obs, info = env.reset()
@@ -173,9 +171,9 @@ if __name__ == "__main__":
             action = env.action_space.sample()
             obs, reward, terminated, truncated, info = env.step(action)
             env.render()
-            time.sleep(0.02)  # slow down so it's watchable in real time
+            time.sleep(0.02)
             if terminated or truncated:
-                print("Episode ended. Resetting.")
+                print(f"Episode ended. Reason: {'Success' if terminated else 'Timeout'}. Resetting.")
                 obs, info = env.reset()
     except KeyboardInterrupt:
         print("Stopped by user.")
