@@ -90,8 +90,22 @@ class ArduinoBotEnv(gym.Env):
     def _get_reward(self):
         ee_pos = self.data.site_xpos[self.ee_site_id].copy()
         distance = np.linalg.norm(self.target_pos - ee_pos)
+        ee_speed = self._get_ee_speed()
+
+        # Dense shaping: negative distance, encourages continuous progress
         reward = -distance
-        return reward, distance
+
+        # Small penalty for high-speed "flying through" the target region,
+        # encourages settling rather than overshooting
+        if distance < self.success_threshold:
+            reward -= 0.1 * ee_speed
+
+        # Success bonus
+        success = (distance < self.success_threshold) and (ee_speed < self.velocity_threshold)
+        if success:
+            reward += 10.0
+
+        return reward, distance, ee_speed, success
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
