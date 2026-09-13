@@ -137,17 +137,12 @@ class ArduinoBotEnv(gym.Env):
         self._step_count += 1
 
         obs = self._get_obs()
-        reward, distance = self._get_reward()
+        reward, distance, ee_speed, success = self._get_reward()
 
-        ee_speed = self._get_ee_speed()
-        success = (distance < self.success_threshold) and (ee_speed < self.velocity_threshold)
         timeout = self._step_count >= self.max_episode_steps
 
         terminated = bool(success)
         truncated = bool(timeout)
-
-        if success:
-            reward += 10.0
 
         info = {"is_success": success, "distance": distance, "ee_speed": ee_speed}
 
