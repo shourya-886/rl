@@ -47,7 +47,7 @@ class ArduinoBotEnv(gym.Env):
         # Task parameters
         self.success_threshold = 0.08       # meters
         self.velocity_threshold = 0.05      # m/s, for stability check
-        self.max_episode_steps = 500        # TODO: tune based on empirical settling time
+        self.max_episode_steps = 1500        # TODO: tune based on empirical settling time
         self._step_count = 0
 
         # Load reachable workspace point cloud (from earlier sampling script)
