@@ -56,7 +56,7 @@
   </equality>
 
   <actuator>
-    <position name="servo_joint_1" joint="joint_1" kp="5" dampratio="1" timeconst="0.02" ctrlrange="-1.5708 1.5708" forcerange="-3 3"/>
+    <position name="servo_joint_1" joint="joint_1" kp="7" dampratio="0.2" timeconst="0.02" ctrlrange="-1.5708 1.5708" forcerange="-3 3"/>
     <position name="servo_joint_2" joint="joint_2" kp="5" dampratio="1" timeconst="0.02" ctrlrange="-1.5708 1.5708" forcerange="-3 3"/>
     <position name="servo_joint_3" joint="joint_3" kp="5" dampratio="1" timeconst="0.02" ctrlrange="-1.5708 1.5708" forcerange="-3 3"/>
     <position name="servo_gripper" joint="joint_4" kp="5" dampratio="1" timeconst="0.02" ctrlrange="-1.5708 0" forcerange="-3 3"/>
