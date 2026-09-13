@@ -48,11 +48,17 @@
     </body>
   </worldbody>
 
+  <contact>
+    <exclude body1="gripper_right" body2="gripper_left"/>
+  </contact>
+  <equality>
+    <joint name="gripper_gear" joint1="joint_5" joint2="joint_4" polycoef="0 -1 0 0 0"/>
+  </equality>
+
   <actuator>
     <position name="servo_joint_1" joint="joint_1" kp="5" dampratio="1" timeconst="0.02" ctrlrange="-1.5708 1.5708" forcerange="-3 3"/>
     <position name="servo_joint_2" joint="joint_2" kp="5" dampratio="1" timeconst="0.02" ctrlrange="-1.5708 1.5708" forcerange="-3 3"/>
     <position name="servo_joint_3" joint="joint_3" kp="5" dampratio="1" timeconst="0.02" ctrlrange="-1.5708 1.5708" forcerange="-3 3"/>
     <position name="servo_gripper" joint="joint_4" kp="5" dampratio="1" timeconst="0.02" ctrlrange="-1.5708 0" forcerange="-3 3"/>
   </actuator>
-
 </mujoco>
